@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import Game, GamePlayer, Round, RoundAnswer
+from .models import Game, Player, Round
 
 
-class GamePlayerInline(admin.TabularInline):
-    model = GamePlayer
+class PlayerInline(admin.TabularInline):
+    model = Player
     extra = 0
 
 
@@ -15,26 +15,23 @@ class RoundInline(admin.TabularInline):
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
-    list_display = ('id', 'created_by', 'status', 'created_at', 'started_at', 'finished_at')
+    list_display = ('id', 'created_at', 'status', 'player_count')
     list_filter = ('status',)
-    search_fields = ('created_by__username',)
-    inlines = [GamePlayerInline, RoundInline]
+    inlines = [PlayerInline, RoundInline]
+
+    @admin.display(description='Players')
+    def player_count(self, obj):
+        return obj.players.count()
 
 
-@admin.register(GamePlayer)
-class GamePlayerAdmin(admin.ModelAdmin):
-    list_display = ('game', 'user', 'player_order', 'score', 'is_active')
-    list_filter = ('is_active',)
+@admin.register(Player)
+class PlayerAdmin(admin.ModelAdmin):
+    list_display = ('user', 'game', 'color', 'score')
+    list_filter = ('game', 'color')
     search_fields = ('user__username',)
 
 
 @admin.register(Round)
 class RoundAdmin(admin.ModelAdmin):
-    list_display = ('game', 'number', 'status', 'question_type', 'started_at', 'finished_at')
-    list_filter = ('status', 'question_type')
-
-
-@admin.register(RoundAnswer)
-class RoundAnswerAdmin(admin.ModelAdmin):
-    list_display = ('round', 'player', 'is_correct', 'points_awarded', 'submitted_at')
-    list_filter = ('is_correct',)
+    list_display = ('game', 'number', 'type', 'status', 'winner', 'created_at', 'completed_at')
+    list_filter = ('game', 'type', 'status')
