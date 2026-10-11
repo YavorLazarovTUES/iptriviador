@@ -1,4 +1,5 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.core.exceptions import ValidationError
 
 from .models import Game, Player, Round
 
@@ -18,10 +19,23 @@ class GameAdmin(admin.ModelAdmin):
     list_display = ('id', 'created_at', 'status', 'player_count')
     list_filter = ('status',)
     inlines = [PlayerInline, RoundInline]
+    actions = ['initialize_games']
 
     @admin.display(description='Players')
     def player_count(self, obj):
         return obj.players.count()
+
+    @admin.action(description='Initialize selected games')
+    def initialize_games(self, request, queryset):
+        from territories.services import initialize_game
+
+        for game in queryset:
+            try:
+                initialize_game(game)
+            except ValidationError as error:
+                self.message_user(request, f'Game #{game.pk}: {" ".join(error.messages)}', level=messages.ERROR)
+            else:
+                self.message_user(request, f'Game #{game.pk} initialized.', level=messages.SUCCESS)
 
 
 @admin.register(Player)
