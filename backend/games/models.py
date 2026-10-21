@@ -74,6 +74,11 @@ class Player(models.Model):
         return f'{self.user} in {self.game}'
 
 
+class WaitingEntry(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
 class Round(models.Model):
     CITY_CAPTURE = 'city_capture'
     BATTLE = 'battle'
