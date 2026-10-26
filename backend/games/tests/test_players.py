@@ -56,3 +56,35 @@ class PlayerConstraintTests(TestCase):
         player = Player.objects.create(game=self.game, user=self.user, color=Player.RED)
         self.user.delete()
         self.assertFalse(Player.objects.filter(pk=player.pk).exists())
+
+
+class PlayerActiveGameTests(TestCase):
+    def setUp(self):
+        self.game = Game.objects.create()
+        colors = [Player.RED, Player.GREEN, Player.BLUE]
+        self.players = []
+        for index in range(3):
+            user = make_user(f'player_{index}', nickname=f'Knight{index}')
+            self.players.append(Player.objects.create(game=self.game, user=user, color=colors[index]))
+        self.game.status = Game.ACTIVE
+        self.game.full_clean()
+        self.game.save()
+
+    def test_cannot_add_a_player_to_an_active_game(self):
+        extra_user = make_user('late_joiner', nickname='LateKnight')
+        player = Player(game=self.game, user=extra_user, color=Player.RED)
+        with self.assertRaises(ValidationError):
+            player.full_clean()
+
+    def test_cannot_remove_a_player_from_an_active_game(self):
+        with self.assertRaises(ValidationError):
+            self.players[0].delete()
+        self.assertTrue(Player.objects.filter(pk=self.players[0].pk).exists())
+
+    def test_existing_player_can_still_be_edited(self):
+        player = self.players[0]
+        player.score = 5
+        player.full_clean()
+        player.save()
+        player.refresh_from_db()
+        self.assertEqual(player.score, 5)
