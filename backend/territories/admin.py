@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Capital, Territory
+from .models import Capital, CaptureRight, Territory
 
 
 @admin.register(Territory)
@@ -9,6 +9,20 @@ class TerritoryAdmin(admin.ModelAdmin):
     list_filter = ('game', 'owner')
     search_fields = ('name', 'slug')
     readonly_fields = ('game', 'name', 'slug', 'neighbors', 'owner')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(CaptureRight)
+class CaptureRightAdmin(admin.ModelAdmin):
+    list_display = ('round', 'player', 'order', 'total', 'used')
+    list_filter = ('round__game', 'order')
+    search_fields = ('player__user__username',)
+    readonly_fields = ('round', 'player', 'order', 'total', 'used')
 
     def has_add_permission(self, request):
         return False

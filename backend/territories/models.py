@@ -71,3 +71,37 @@ class Capital(models.Model):
 
     def __str__(self):
         return f'Capital of {self.player} at {self.territory}'
+
+
+class CaptureRight(models.Model):
+    FIRST = 1
+    SECOND = 2
+
+    ORDER_CHOICES = [
+        (FIRST, 'First place'),
+        (SECOND, 'Second place'),
+    ]
+
+    round = models.ForeignKey('games.Round', on_delete=models.CASCADE, related_name='capture_rights')
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='capture_rights')
+    order = models.PositiveSmallIntegerField(choices=ORDER_CHOICES)
+    total = models.PositiveSmallIntegerField()
+    used = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['round', 'player'], name='unique_capture_right_per_round_player'),
+            models.CheckConstraint(condition=models.Q(used__lte=models.F('total')), name='capture_right_used_lte_total'),
+            models.CheckConstraint(condition=models.Q(used__gte=0), name='capture_right_used_gte_0'),
+        ]
+
+    def remaining(self):
+        return self.total - self.used
+
+    def clean(self):
+        super().clean()
+        if self.player_id and self.round_id and self.player.game_id != self.round.game_id:
+            raise ValidationError('The capture-right player must belong to the same game as the round.')
+
+    def __str__(self):
+        return f'{self.player} rights for {self.round} ({self.used}/{self.total})'

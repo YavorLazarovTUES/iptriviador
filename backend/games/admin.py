@@ -29,7 +29,7 @@ class GameAdmin(admin.ModelAdmin):
     list_display = ('id', 'created_at', 'status', 'player_count')
     list_filter = ('status',)
     inlines = [PlayerInline, RoundInline]
-    actions = ['initialize_games']
+    actions = ['initialize_games', 'advance_capture_phase']
 
     @admin.display(description='Players')
     def player_count(self, obj):
@@ -46,6 +46,23 @@ class GameAdmin(admin.ModelAdmin):
                 self.message_user(request, f'Game #{game.pk}: {" ".join(error.messages)}', level=messages.ERROR)
             else:
                 self.message_user(request, f'Game #{game.pk} initialized.', level=messages.SUCCESS)
+
+    @admin.action(description='Advance capture phase (start the next city_capture round)')
+    def advance_capture_phase(self, request, queryset):
+        from territories.services import try_advance_capture_phase
+
+        for game in queryset:
+            try:
+                next_round = try_advance_capture_phase(game)
+            except ValidationError as error:
+                self.message_user(request, f'Game #{game.pk}: {" ".join(error.messages)}', level=messages.ERROR)
+            else:
+                if next_round is None:
+                    self.message_user(request, f'Game #{game.pk}: nothing to advance.', level=messages.INFO)
+                else:
+                    self.message_user(
+                        request, f'Game #{game.pk}: started round #{next_round.number}.', level=messages.SUCCESS
+                    )
 
 
 @admin.register(Player)
@@ -95,10 +112,12 @@ class RoundAdmin(admin.ModelAdmin):
     @admin.action(description='Start selected pending rounds')
     def start_rounds(self, request, queryset):
         from games.services import InvalidStateError, start_round
+        from territories.services import start_city_capture_round
 
         for round_ in queryset:
+            starter = start_city_capture_round if round_.type == Round.CITY_CAPTURE else start_round
             try:
-                start_round(round_)
+                starter(round_)
             except (ValidationError, InvalidStateError) as error:
                 self.message_user(request, f'Round #{round_.pk}: {" ".join(error.messages)}', level=messages.ERROR)
             else:
@@ -107,10 +126,12 @@ class RoundAdmin(admin.ModelAdmin):
     @admin.action(description='Resolve selected rounds (if ready)')
     def resolve_rounds(self, request, queryset):
         from games.services import InvalidStateError, resolve_round
+        from territories.services import resolve_city_capture_round
 
         for round_ in queryset:
+            resolver = resolve_city_capture_round if round_.type == Round.CITY_CAPTURE else resolve_round
             try:
-                resolve_round(round_)
+                resolver(round_)
             except (ValidationError, InvalidStateError) as error:
                 self.message_user(request, f'Round #{round_.pk}: {" ".join(error.messages)}', level=messages.ERROR)
             else:
