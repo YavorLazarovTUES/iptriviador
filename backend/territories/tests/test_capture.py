@@ -89,11 +89,11 @@ class RoundCompletionGrantsRightsAndWinRewardTests(TestCase):
         game, players = make_initialized_game()
         p1, p2, p3 = players
         make_numeric_questions(1, start_answer=10)
-        self.assertEqual(free_territory_count(game), 15)
+        self.assertEqual(free_territory_count(game), 9)
 
         round_ = start_city_capture_round(create_city_capture_round(game, 1))
         self.assertEqual(round_.required_places, 2)
-        self.assertEqual(round_.free_territories_at_start, 15)
+        self.assertEqual(round_.free_territories_at_start, 9)
 
         rq = round_.round_questions.get(sequence=1)
         base = rq.started_at

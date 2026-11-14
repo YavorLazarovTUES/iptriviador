@@ -4,17 +4,7 @@ from django.db.models import ProtectedError
 from django.test import TestCase
 
 from questions.models import AnswerOption, Category, ChoiceQuestion, NumericQuestion
-
-
-def make_choice_question(category, correct_index=0):
-    question = ChoiceQuestion.objects.create(category=category, text='2 + 2?')
-    for index in range(4):
-        AnswerOption.objects.create(
-            question=question,
-            text=str(index),
-            is_correct=(index == correct_index),
-        )
-    return question
+from questions.tests import make_choice_question
 
 
 class CategoryModelTests(TestCase):

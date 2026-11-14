@@ -1,76 +1,44 @@
 """The project's fixed territory map: one definition, shared by every game.
 
-Transferred from the map of Bulgaria used by Triviador Bulgaria: its 18
-territories (within the 9-21, multiple-of-3 range required by M04) with their
-in-game names (`name_bg`), and neighbor pairs read off the in-game borders.
-Every territory has at least 2 neighbors, the graph is connected, and several
-triples of mutually non-neighboring territories exist (needed for the M05
-capital assignment).
+Chosen for this project: 12 territories (within the 9-21, multiple-of-3 range
+required by M04), arranged so every territory has at least 2 neighbors, the
+graph is connected, and several triples of mutually non-neighboring
+territories exist (needed for the M05 capital assignment).
 """
 import itertools
 
 MAP_TERRITORIES = [
-    # North
-    {'name': 'Skalite', 'name_bg': 'Скалите', 'slug': 'skalite'},
-    {'name': 'Dunavia', 'name_bg': 'Дунавия', 'slug': 'dunavia'},
-    {'name': 'Zhitno Pole', 'name_bg': 'Житно поле', 'slug': 'zhitno-pole'},
-    {'name': 'Leventa', 'name_bg': 'Левента', 'slug': 'leventa'},
-    {'name': 'Tsarevo', 'name_bg': 'Царево', 'slug': 'tsarevo'},
-    {'name': 'Balkania', 'name_bg': 'Балкания', 'slug': 'balkania'},
-    # North-east and Black Sea coast
-    {'name': 'Pelikania', 'name_bg': 'Пеликания', 'slug': 'pelikania'},
-    {'name': 'Madara', 'name_bg': 'Мадара', 'slug': 'madara'},
-    {'name': 'Kaliakra', 'name_bg': 'Калиакра', 'slug': 'kaliakra'},
-    {'name': 'Slanchevo', 'name_bg': 'Слънчево', 'slug': 'slanchevo'},
-    {'name': 'Kukeri', 'name_bg': 'Кукери', 'slug': 'kukeri'},
-    # South and west
-    {'name': 'Sredets', 'name_bg': 'Средец', 'slug': 'sredets'},
-    {'name': 'Ezera', 'name_bg': 'Езера', 'slug': 'ezera'},
-    {'name': 'Pirini', 'name_bg': 'Пирини', 'slug': 'pirini'},
-    {'name': 'Rozova Dolina', 'name_bg': 'Розова долина', 'slug': 'rozova-dolina'},
-    {'name': 'Karandila', 'name_bg': 'Карандила', 'slug': 'karandila'},
-    {'name': 'Chuden Kray', 'name_bg': 'Чуден край', 'slug': 'chuden-kray'},
-    {'name': 'Zlaten Grozd', 'name_bg': 'Златен грозд', 'slug': 'zlaten-grozd'},
+    {'name': 'Northgate', 'slug': 'northgate'},
+    {'name': 'Rivermouth', 'slug': 'rivermouth'},
+    {'name': 'Stonevale', 'slug': 'stonevale'},
+    {'name': 'Ashford', 'slug': 'ashford'},
+    {'name': 'Oakhaven', 'slug': 'oakhaven'},
+    {'name': 'Mistwood', 'slug': 'mistwood'},
+    {'name': 'Sunspire', 'slug': 'sunspire'},
+    {'name': 'Ironhold', 'slug': 'ironhold'},
+    {'name': 'Greymoor', 'slug': 'greymoor'},
+    {'name': 'Thornfield', 'slug': 'thornfield'},
+    {'name': 'Brightwater', 'slug': 'brightwater'},
+    {'name': 'Dunmore', 'slug': 'dunmore'},
 ]
 
 MAP_NEIGHBORS = [
-    ('skalite', 'dunavia'),
-    ('skalite', 'sredets'),
-    ('dunavia', 'zhitno-pole'),
-    ('dunavia', 'sredets'),
-    ('dunavia', 'balkania'),
-    ('zhitno-pole', 'leventa'),
-    ('zhitno-pole', 'balkania'),
-    ('zhitno-pole', 'tsarevo'),
-    ('leventa', 'tsarevo'),
-    ('leventa', 'pelikania'),
-    ('leventa', 'madara'),
-    ('pelikania', 'madara'),
-    ('pelikania', 'kaliakra'),
-    ('madara', 'kaliakra'),
-    ('madara', 'slanchevo'),
-    ('madara', 'tsarevo'),
-    ('kaliakra', 'slanchevo'),
-    ('slanchevo', 'tsarevo'),
-    ('slanchevo', 'kukeri'),
-    ('tsarevo', 'balkania'),
-    ('tsarevo', 'karandila'),
-    ('balkania', 'sredets'),
-    ('balkania', 'ezera'),
-    ('balkania', 'rozova-dolina'),
-    ('balkania', 'karandila'),
-    ('sredets', 'ezera'),
-    ('ezera', 'pirini'),
-    ('ezera', 'rozova-dolina'),
-    ('ezera', 'chuden-kray'),
-    ('pirini', 'chuden-kray'),
-    ('rozova-dolina', 'karandila'),
-    ('rozova-dolina', 'chuden-kray'),
-    ('rozova-dolina', 'zlaten-grozd'),
-    ('karandila', 'kukeri'),
-    ('karandila', 'zlaten-grozd'),
-    ('kukeri', 'zlaten-grozd'),
-    ('chuden-kray', 'zlaten-grozd'),
+    ('northgate', 'rivermouth'),
+    ('rivermouth', 'stonevale'),
+    ('stonevale', 'ashford'),
+    ('ashford', 'oakhaven'),
+    ('oakhaven', 'mistwood'),
+    ('mistwood', 'sunspire'),
+    ('sunspire', 'ironhold'),
+    ('ironhold', 'greymoor'),
+    ('greymoor', 'thornfield'),
+    ('thornfield', 'brightwater'),
+    ('brightwater', 'dunmore'),
+    ('dunmore', 'northgate'),
+    ('northgate', 'stonevale'),
+    ('ashford', 'mistwood'),
+    ('sunspire', 'greymoor'),
+    ('thornfield', 'dunmore'),
 ]
 
 MIN_TERRITORY_COUNT = 9

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'questions',
     'games',
     'territories',
+    'battles',
 ]
 
 MIDDLEWARE = [
