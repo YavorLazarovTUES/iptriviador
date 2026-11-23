@@ -137,12 +137,21 @@ def start_round(round_obj):
         round_question.deadline = now + timedelta(seconds=Round.ANSWER_WINDOW_SECONDS)
         round_question.full_clean()
         round_question.save()
+        _schedule_deadline_check(round_question)
 
         locked.status = Round.ACTIVE
         locked.full_clean()
         locked.save()
 
     return locked
+
+
+def _schedule_deadline_check(round_question):
+    """Hand the "close this question at its deadline" work to a Celery
+    worker (M09); queued only after the current transaction commits."""
+    from .tasks import schedule_deadline_check
+
+    schedule_deadline_check(round_question)
 
 
 def _current_open_question(locked_round):
@@ -337,6 +346,7 @@ def _spawn_followup(locked_round, rank, group_players):
     round_question.full_clean()
     round_question.save()
     round_question.contenders.set(group_players)
+    _schedule_deadline_check(round_question)
 
 
 def _finalize_incomplete(locked_round, reason):

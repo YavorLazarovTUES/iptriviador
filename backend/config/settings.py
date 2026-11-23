@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -135,4 +136,31 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['rest_framework.authentication.SessionAuthentication'],
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
     'EXCEPTION_HANDLER': 'accounts.views.exception_handler',
+}
+
+# Celery (M09): background deadline processing.
+# The broker only carries messages between Django and the workers; it never
+# runs a task itself. Results are not needed - the outcome lives in the DB.
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_TASK_IGNORE_RESULT = True
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+CELERY_TASK_ACKS_LATE = True  # safe: every task here is idempotent
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# How often the periodic sweep looks for expired, still-open questions. It is
+# the safety net behind the per-question delayed task (a lost message, a
+# worker that was down at the deadline, a broker outage while scheduling).
+DEADLINE_SWEEP_INTERVAL_SECONDS = 5
+
+CELERY_BEAT_SCHEDULE = {
+    'close-expired-round-questions': {
+        'task': 'games.tasks.close_expired_round_questions',
+        'schedule': DEADLINE_SWEEP_INTERVAL_SECONDS,
+    },
+    'close-expired-battle-questions': {
+        'task': 'battles.tasks.close_expired_battle_questions',
+        'schedule': DEADLINE_SWEEP_INTERVAL_SECONDS,
+    },
 }

@@ -165,12 +165,21 @@ def start_battle(battle):
         battle_question.deadline = now + timedelta(seconds=Battle.ANSWER_WINDOW_SECONDS)
         battle_question.full_clean()
         battle_question.save()
+        _schedule_deadline_check(battle_question)
 
         locked.status = Battle.ACTIVE
         locked.full_clean()
         locked.save()
 
     return locked
+
+
+def _schedule_deadline_check(battle_question):
+    """Hand the "close this question at its deadline" work to a Celery
+    worker (M09); queued only after the current transaction commits."""
+    from .tasks import schedule_deadline_check
+
+    schedule_deadline_check(battle_question)
 
 
 def _current_open_question(locked_battle):
@@ -360,6 +369,7 @@ def _spawn_followup(locked_battle, question_type):
     battle_question = BattleQuestion(**fields)
     battle_question.full_clean()
     battle_question.save()
+    _schedule_deadline_check(battle_question)
 
 
 def _finalize_with_winner(locked_battle, player):
