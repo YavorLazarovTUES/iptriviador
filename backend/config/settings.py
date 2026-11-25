@@ -83,6 +83,13 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            # Take the write lock when a transaction begins, so that several
+            # processes (web, workers, close_expired_rounds) wait for each
+            # other instead of failing with "database is locked".
+            'transaction_mode': 'IMMEDIATE',
+            'timeout': 20,
+        },
     }
 }
 
@@ -141,7 +148,7 @@ REST_FRAMEWORK = {
 # Celery (M09): background deadline processing.
 # The broker only carries messages between Django and the workers; it never
 # runs a task itself. Results are not needed - the outcome lives in the DB.
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
 CELERY_TASK_IGNORE_RESULT = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True

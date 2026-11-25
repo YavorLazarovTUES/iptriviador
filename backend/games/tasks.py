@@ -18,8 +18,10 @@ from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
 
+from config.celery import publish_quickly
+
 from .models import Round, RoundQuestion
-from .services import InvalidStateError
+from .services import InvalidStateError, expired_open_questions
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +79,17 @@ def close_expired_round_question(round_question_id):
 
 @shared_task(name='games.tasks.close_expired_round_questions')
 def close_expired_round_questions():
-    """Periodic sweep: close every open round question past its deadline."""
-    expired_ids = list(
-        RoundQuestion.objects.filter(
-            resolved_at__isnull=True,
-            started_at__isnull=False,
-            deadline__lte=timezone.now(),
-            round__status=Round.ACTIVE,
-        ).values_list('pk', flat=True)
-    )
-    closed = sum(1 for pk in expired_ids if close_round_question_if_expired(pk) == CLOSED)
+    """Periodic sweep: close every open round question past its deadline.
+
+    A question that fails is logged and left open for the next sweep; it
+    must not keep the questions behind it from being closed.
+    """
+    closed = 0
+    for pk in list(expired_open_questions().values_list('pk', flat=True)):
+        try:
+            closed += close_round_question_if_expired(pk) == CLOSED
+        except Exception:
+            logger.exception('Could not close expired round question %s.', pk)
     if closed:
         logger.info('Closed %d expired round question(s).', closed)
     return closed
@@ -101,6 +104,6 @@ def schedule_deadline_check(round_question):
     """
     pk, deadline = round_question.pk, round_question.deadline
     transaction.on_commit(
-        lambda: close_expired_round_question.apply_async(args=[pk], eta=deadline),
+        lambda: publish_quickly(close_expired_round_question, args=[pk], eta=deadline),
         robust=True,
     )

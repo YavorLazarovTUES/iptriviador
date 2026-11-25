@@ -154,6 +154,20 @@ def _schedule_deadline_check(round_question):
     schedule_deadline_check(round_question)
 
 
+def expired_open_questions():
+    """Every open round question whose deadline has passed, oldest first.
+
+    `deadline__lte` rather than "exactly now", so questions that expired
+    while nothing was running (e.g. a restart) are found as well.
+    """
+    return RoundQuestion.objects.filter(
+        resolved_at__isnull=True,
+        started_at__isnull=False,
+        deadline__lte=timezone.now(),
+        round__status=Round.ACTIVE,
+    ).order_by('deadline')
+
+
 def _current_open_question(locked_round):
     return locked_round.round_questions.filter(resolved_at__isnull=True).order_by('-sequence').first()
 
@@ -230,9 +244,24 @@ def resolve_round(round_obj):
 
 
 def _resolve_question(locked_round, question):
+    """Close `question` and apply the ranking rules, at most once.
+
+    The conditional UPDATE is what makes it safe to repeat: only the caller
+    whose statement changes the row from open to resolved goes on to rank.
+    A caller that matched 0 rows raises, so its surrounding transaction is
+    rolled back without any change. `select_for_update` alone would not be
+    enough - SQLite ignores it.
+    """
     now = timezone.now()
+    claimed = RoundQuestion.objects.filter(
+        pk=question.pk,
+        resolved_at__isnull=True,
+        round__status=Round.ACTIVE,
+    ).update(resolved_at=now)
+    if claimed == 0:
+        raise InvalidStateError('This question has already been resolved.')
+
     question.resolved_at = now
-    question.save(update_fields=['resolved_at'])
     group = list(question.contenders.all())
     _attempt(locked_round, question.target_rank, group, question)
 

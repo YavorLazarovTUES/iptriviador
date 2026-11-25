@@ -145,18 +145,21 @@ def resolve_city_capture_round(round_obj):
 def _apply_rewards_if_just_completed(round_id):
     """Record the final ranking's win reward and choice rights, once.
 
-    Guarded by `Round.rewards_applied` so it is a no-op on a round that was
-    already rewarded, regardless of which of the two entry points above
-    (or a repeated call) triggered the completion.
+    Guarded by a conditional update of `Round.rewards_applied` so it is a
+    no-op on a round that was already rewarded, regardless of which of the
+    two entry points above (or a repeated or concurrent call) triggered the
+    completion.
     """
-    round_obj = Round.objects.select_for_update().get(pk=round_id)
-    if round_obj.type != Round.CITY_CAPTURE:
-        return
-    if round_obj.status != Round.COMPLETED:
-        return
-    if round_obj.rewards_applied:
+    claimed = Round.objects.filter(
+        pk=round_id,
+        type=Round.CITY_CAPTURE,
+        status=Round.COMPLETED,
+        rewards_applied=False,
+    ).update(rewards_applied=True)
+    if claimed == 0:
         return
 
+    round_obj = Round.objects.get(pk=round_id)
     if round_obj.winner_id:
         winner = Player.objects.select_for_update().get(pk=round_obj.winner_id)
         winner.score += WIN_REWARD
@@ -171,9 +174,6 @@ def _apply_rewards_if_just_completed(round_id):
             CaptureRight.objects.create(
                 round=round_obj, player=second, order=CaptureRight.SECOND, total=rights_second
             )
-
-    round_obj.rewards_applied = True
-    round_obj.save(update_fields=['rewards_applied'])
 
 
 def _is_eligible_territory(player, territory):

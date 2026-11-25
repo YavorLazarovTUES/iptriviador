@@ -38,7 +38,7 @@ class DeadlineSchedulingTests(TestCase):
                 callback()
 
         rq = round_.round_questions.get(sequence=1)
-        apply_async.assert_called_once_with(args=[rq.pk], eta=rq.deadline)
+        apply_async.assert_called_once_with(args=[rq.pk], eta=rq.deadline, connection=mock.ANY, retry=False)
 
     def test_a_tie_break_question_gets_its_own_delayed_task(self):
         round_ = start_round(create_round(self.game, Round.BONUS, 1, required_places=1))
@@ -49,7 +49,19 @@ class DeadlineSchedulingTests(TestCase):
                 tasks.close_expired_round_questions()  # nobody answered -> follow-up
 
         followup = round_.round_questions.get(sequence=2)
-        apply_async.assert_called_once_with(args=[followup.pk], eta=followup.deadline)
+        apply_async.assert_called_once_with(
+            args=[followup.pk], eta=followup.deadline, connection=mock.ANY, retry=False,
+        )
+
+    def test_queueing_from_a_request_uses_short_broker_limits(self):
+        round_ = create_round(self.game, Round.CITY_CAPTURE, 1, required_places=1)
+        with mock.patch.object(tasks.close_expired_round_question, 'apply_async') as apply_async:
+            with self.captureOnCommitCallbacks(execute=True):
+                start_round(round_)
+
+        options = apply_async.call_args.kwargs['connection'].transport_options
+        self.assertEqual(options['max_retries'], 0)
+        self.assertLessEqual(options['socket_connect_timeout'], 1)
 
     def test_broker_outage_does_not_fail_the_request(self):
         round_ = create_round(self.game, Round.CITY_CAPTURE, 1, required_places=1)
@@ -128,6 +140,31 @@ class PeriodicSweepTests(TestCase):
         self.assertEqual(running_round.status, Round.ACTIVE)
         self.assertIsNone(running_round.round_questions.get(sequence=1).resolved_at)
         self.assertEqual(tasks.close_expired_round_questions(), 0)
+
+    def test_one_failing_question_does_not_block_the_ones_behind_it(self):
+        make_numeric_questions(4, start_answer=10)
+        rounds = []
+        for age in (5, 1):  # the broken one is older, so it is swept first
+            game, players = make_game_with_players(3, status=Game.ACTIVE)
+            # A city capture round without `free_territories_at_start` raises
+            # a TypeError when its rewards are worked out.
+            round_type = Round.CITY_CAPTURE if age == 5 else Round.BONUS
+            round_ = start_round(create_round(game, round_type, 1, required_places=1))
+            rq = round_.round_questions.get(sequence=1)
+            submit_answer(rq, players[0], 10)
+            rq.deadline = timezone.now() - timedelta(seconds=age)
+            rq.save(update_fields=['deadline'])
+            rounds.append(round_)
+        broken, healthy = rounds
+
+        with self.assertLogs('games.tasks', level='ERROR'):
+            self.assertEqual(tasks.close_expired_round_questions(), 1)
+
+        broken.refresh_from_db()
+        healthy.refresh_from_db()
+        self.assertEqual(healthy.status, Round.COMPLETED)
+        self.assertEqual(broken.status, Round.ACTIVE)
+        self.assertIsNone(broken.round_questions.get(sequence=1).resolved_at)
 
     def test_city_capture_rewards_are_applied_exactly_once(self):
         game, (p1, p2, p3) = make_initialized_game()
